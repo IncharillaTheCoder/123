@@ -1,252 +1,105 @@
-loadstring(game:HttpGet("https://github.com/dawid-scripts/Fluent/releases/latest/download/main.lua"))()
-
-local Fluent = loadstring(game:HttpGet("https://github.com/dawid-scripts/Fluent/releases/latest/download/main.lua"))()
-local SaveManager = loadstring(game:HttpGet("https://raw.githubusercontent.com/dawid-scripts/Fluent/master/Addons/SaveManager.lua"))()
-local InterfaceManager = loadstring(game:HttpGet("https://raw.githubusercontent.com/dawid-scripts/Fluent/master/Addons/InterfaceManager.lua"))()
-
-local Main = Fluent:CreateWindow({
-    Title = "Flight Control",
-    SubTitle = "Enhanced Movement System",
-    TabWidth = 160,
-    Size = UDim2.fromOffset(580, 460),
-    Acrylic = true,
-    Theme = "Dark"
-})
-
-local Tabs = {
-    Flight = Main:AddTab({ Title = "Flight", Icon = "wind" }),
-    Settings = Main:AddTab({ Title = "Settings", Icon = "settings" })
-}
-
--- Flight System Variables
-local Player = game:GetService("Players").LocalPlayer
-local Character = Player.CharacterAdded:Wait()
-local HumanoidRootPart = Character:WaitForChild("HumanoidRootPart")
-
-local FlySpeed = 50
-local Flying = false
-local BodyGyro, BodyVelocity
-
-local Controls = {
-    Forward = false,
-    Backward = false,
-    Left = false,
-    Right = false,
-    Up = false,
-    Down = false
-}
-
--- Fly function
-local function Fly()
-    if Flying then
-        BodyGyro = Instance.new("BodyGyro")
-        BodyVelocity = Instance.new("BodyVelocity")
-        
-        BodyGyro.Parent = HumanoidRootPart
-        BodyVelocity.Parent = HumanoidRootPart
-        
-        BodyGyro.P = 9e4
-        BodyGyro.maxTorque = Vector3.new(9e9, 9e9, 9e9)
-        BodyGyro.cframe = HumanoidRootPart.CFrame
-        
-        BodyVelocity.velocity = Vector3.new(0, 0, 0)
-        BodyVelocity.maxForce = Vector3.new(9e9, 9e9, 9e9)
-        
-        spawn(function()
-            while Flying do
-                wait()
-                
-                local moveDirection = Vector3.new(0, 0, 0)
-                
-                if Controls.Left then
-                    moveDirection = moveDirection + Vector3.new(-FlySpeed, 0, 0)
-                elseif Controls.Right then
-                    moveDirection = moveDirection + Vector3.new(FlySpeed, 0, 0)
-                end
-                
-                if Controls.Forward then
-                    moveDirection = moveDirection + Vector3.new(0, 0, -FlySpeed)
-                elseif Controls.Backward then
-                    moveDirection = moveDirection + Vector3.new(0, 0, FlySpeed)
-                end
-                
-                if Controls.Up then
-                    moveDirection = moveDirection + Vector3.new(0, FlySpeed, 0)
-                elseif Controls.Down then
-                    moveDirection = moveDirection + Vector3.new(0, -FlySpeed, 0)
-                end
-                
-                if moveDirection.Magnitude > 0 then
-                    BodyVelocity.velocity = BodyGyro.cframe:VectorToWorldSpace(moveDirection)
-                else
-                    BodyVelocity.velocity = Vector3.new(0, 0, 0)
-                end
-                
-                BodyGyro.cframe = Workspace.CurrentCamera.CoordinateFrame
-            end
-            
-            if BodyGyro then BodyGyro:Destroy() end
-            if BodyVelocity then BodyVelocity:Destroy() end
-        end)
-    else
-        if BodyGyro then BodyGyro:Destroy() end
-        if BodyVelocity then BodyVelocity:Destroy() end
-    end
-end
-
--- Input handling
+-- Roblox Aimbot Script with Visual Indicator
+local Players = game:GetService("Players")
+local RunService = game:GetService("RunService")
 local UserInputService = game:GetService("UserInputService")
+local LocalPlayer = Players.LocalPlayer
+local Mouse = LocalPlayer:GetMouse()
 
-UserInputService.InputBegan:Connect(function(input, processed)
-    if processed then return end
-    
-    if input.KeyCode == Enum.KeyCode.W then
-        Controls.Forward = true
-    elseif input.KeyCode == Enum.KeyCode.S then
-        Controls.Backward = true
-    elseif input.KeyCode == Enum.KeyCode.A then
-        Controls.Left = true
-    elseif input.KeyCode == Enum.KeyCode.D then
-        Controls.Right = true
-    elseif input.KeyCode == Enum.KeyCode.Space then
-        Controls.Up = true
-    elseif input.KeyCode == Enum.KeyCode.LeftShift then
-        Controls.Down = true
-    end
-end)
+local aimbotEnabled = false
+local aimbotKey = Enum.KeyCode.Q
 
-UserInputService.InputEnded:Connect(function(input, processed)
-    if input.KeyCode == Enum.KeyCode.W then
-        Controls.Forward = false
-    elseif input.KeyCode == Enum.KeyCode.S then
-        Controls.Backward = false
-    elseif input.KeyCode == Enum.KeyCode.A then
-        Controls.Left = false
-    elseif input.KeyCode == Enum.KeyCode.D then
-        Controls.Right = false
-    elseif input.KeyCode == Enum.KeyCode.Space then
-        Controls.Up = false
-    elseif input.KeyCode == Enum.KeyCode.LeftShift then
-        Controls.Down = false
-    end
-end)
+-- Create visual indicator
+local screenGui = Instance.new("ScreenGui")
+screenGui.Parent = game.CoreGui
+screenGui.Name = "AimbotIndicator"
 
--- GUI Elements
-Tabs.Flight:AddParagraph({
-    Title = "Flight Control System",
-    Content = "Toggle flight mode and adjust flight speed using the controls below."
-})
+local indicator = Instance.new("Frame")
+indicator.Size = UDim2.new(0, 100, 0, 30)
+indicator.Position = UDim2.new(0, 10, 0, 10)
+indicator.BackgroundColor3 = Color3.fromRGB(255, 0, 0)
+indicator.BorderSizePixel = 2
+indicator.BorderColor3 = Color3.fromRGB(255, 255, 255)
+indicator.Parent = screenGui
 
-local FlightToggle = Tabs.Flight:AddToggle("FlightToggle", {
-    Title = "Flight Mode",
-    Default = false
-})
+local label = Instance.new("TextLabel")
+label.Size = UDim2.new(1, 0, 1, 0)
+label.BackgroundTransparency = 1
+label.Text = "AIMBOT: OFF"
+label.TextColor3 = Color3.fromRGB(255, 255, 255)
+label.TextScaled = true
+label.Font = Enum.Font.GothamBold
+label.Parent = indicator
 
-FlightToggle:OnChanged(function(value)
-    Flying = value
-    if Flying then
-        Main:Notify({
-            Title = "Flight System",
-            Content = "Flight mode activated!",
-            Duration = 2
-        })
-        Fly()
+-- Update indicator function
+function updateIndicator()
+    if aimbotEnabled then
+        indicator.BackgroundColor3 = Color3.fromRGB(0, 255, 0)
+        label.Text = "AIMBOT: ON"
     else
-        Main:Notify({
-            Title = "Flight System",
-            Content = "Flight mode deactivated!",
-            Duration = 2
-        })
-        if BodyGyro then BodyGyro:Destroy() end
-        if BodyVelocity then BodyVelocity:Destroy() end
+        indicator.BackgroundColor3 = Color3.fromRGB(255, 0, 0)
+        label.Text = "AIMBOT: OFF"
     end
-    print("Flight Mode:", Flying)
-end)
-
-local SpeedSlider = Tabs.Flight:AddSlider("SpeedSlider", {
-    Title = "Flight Speed",
-    Description = "Adjust how fast you fly",
-    Default = 50,
-    Min = 10,
-    Max = 200,
-    Rounding = 1,
-    Callback = function(value)
-        FlySpeed = value
-        print("Flight Speed:", value)
-    end
-})
-
-Tabs.Flight:AddButton({
-    Title = "Reset Character",
-    Callback = function()
-        Character:BreakJoints()
-        Main:Notify({
-            Title = "Flight System",
-            Content = "Character reset!",
-            Duration = 2
-        })
-    end
-})
-
-Tabs.Flight:AddParagraph({
-    Title = "Controls",
-    Content = "WASD - Move\nSpace - Ascend\nShift - Descend"
-})
-
--- Settings Tab
-local InterfaceSection = Tabs.Settings:AddSection("Interface")
-
-InterfaceSection:AddDropdown("InterfaceTheme", {
-    Title = "Theme",
-    Description = "Switches Fluent theme.",
-    Values = Fluent.Themes,
-    Default = Fluent.Theme,
-    Callback = function(v)
-        Fluent:SetTheme(v)
-        Main:Notify({ Title = "Theme", Content = "Switched to " .. v, Duration = 2 })
-    end
-})
-
-if Fluent.UseAcrylic then
-    InterfaceSection:AddToggle("AcrylicToggle", {
-        Title = "Acrylic Blur",
-        Default = Fluent.Acrylic,
-        Callback = function(v)
-            Fluent:ToggleAcrylic(v)
-        end
-    })
 end
 
-InterfaceSection:AddToggle("TransparentToggle", {
-    Title = "Transparency",
-    Default = Fluent.Transparency,
-    Callback = function(v)
-        Fluent:ToggleTransparency(v)
+-- Toggle aimbot with Q key
+UserInputService.InputBegan:Connect(function(input, gameProcessed)
+    if gameProcessed then return end
+    
+    if input.KeyCode == aimbotKey then
+        aimbotEnabled = not aimbotEnabled
+        updateIndicator()
+        print("Aimbot: " .. (aimbotEnabled and "ENABLED" or "DISABLED"))
     end
-})
+end)
 
-InterfaceSection:AddKeybind("MenuKeybind", {
-    Title = "Minimize UI",
-    Default = "RightShift"
-})
-Main.MinimizeKeybind = Main.Options.MenuKeybind
+-- Find closest player to crosshair
+function getClosestPlayer()
+    local closestPlayer = nil
+    local shortestDistance = math.huge
+    local currentCamera = workspace.CurrentCamera
+    
+    for _, player in pairs(Players:GetPlayers()) do
+        if player ~= LocalPlayer and player.Character then
+            local character = player.Character
+            local humanoidRootPart = character:FindFirstChild("HumanoidRootPart")
+            local head = character:FindFirstChild("Head")
+            
+            if humanoidRootPart and head then
+                local screenPoint, visible = currentCamera:WorldToScreenPoint(head.Position)
+                
+                if visible then
+                    local mouseLocation = Vector2.new(Mouse.X, Mouse.Y)
+                    local targetLocation = Vector2.new(screenPoint.X, screenPoint.Y)
+                    local distance = (mouseLocation - targetLocation).Magnitude
+                    
+                    if distance < shortestDistance then
+                        shortestDistance = distance
+                        closestPlayer = player
+                    end
+                end
+            end
+        end
+    end
+    
+    return closestPlayer
+end
 
--- Save Manager
-SaveManager:SetLibrary(Fluent)
-InterfaceManager:SetLibrary(Fluent)
+-- Aimbot logic
+RunService.RenderStepped:Connect(function()
+    if aimbotEnabled then
+        local targetPlayer = getClosestPlayer()
+        
+        if targetPlayer and targetPlayer.Character then
+            local character = targetPlayer.Character
+            local head = character:FindFirstChild("Head")
+            
+            if head then
+                local currentCamera = workspace.CurrentCamera
+                currentCamera.CFrame = CFrame.lookAt(currentCamera.CFrame.Position, head.Position)
+            end
+        end
+    end
+end)
 
-SaveManager:IgnoreThemeSettings()
-SaveManager:SetIgnoreIndexes({ "MenuKeybind" })
-
-InterfaceManager:BuildInterfaceSection(Tabs.Settings)
-SaveManager:BuildConfigSection(Tabs.Settings)
-
-SaveManager:LoadAutoloadConfig()
-
-Main:Notify({
-    Title = "Flight Control",
-    Content = "Flight system loaded successfully!",
-    Duration = 4
-})
-
-print("Flight Control GUI Loaded!")
+-- Initialize indicator
+updateIndicator()
