@@ -1,4 +1,4 @@
--- ts is NOT my script
+-- ts is NOT my script neither made for sab
 
 local Players = game:GetService("Players")
 local RunService = game:GetService("RunService")
